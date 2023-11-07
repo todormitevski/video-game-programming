@@ -295,7 +295,11 @@ def gameWonAnimation(board):
     alpha = 10
     alpha_change = 35
 
+    # second addition
+    confetti = []
+
     for i in range(13):
+        # first addition
         angle_rad = math.radians(angle)
         image_x = DISPLAYSURF.get_width() // 2 + int(math.cos(angle_rad) * radius)
         image_y += 50
@@ -304,13 +308,27 @@ def gameWonAnimation(board):
 
         DISPLAYSURF.blit(victory_image, (image_x - victory_rect.width // 2, image_y - victory_rect.height // 2))
 
-        pygame.display.update()
-        pygame.time.wait(300)
-
         angle += 30
 
         if alpha <= 255:
             alpha += alpha_change
+
+        # second addition
+        for boxx in range(BOARDWIDTH):
+            for boxy in range(BOARDHEIGHT):
+                
+                left, top = leftTopCoordsOfBox(boxx, boxy)
+                xpos = random.randint(left, left + BOXSIZE)
+                ypos = random.randint(top, top + BOXSIZE)
+                color = random.choice(ALLCOLORS)
+                confetti.append((xpos, ypos, color))
+
+        for confetti_square in confetti:
+            xpos, ypos, color = confetti_square
+            pygame.draw.rect(DISPLAYSURF, color, (xpos, ypos, 5, 5))
+
+        pygame.display.update()
+        pygame.time.wait(300)
 
     # flash the background color when the player has won
     # coveredBoxes = generateRevealedBoxesData(True)
