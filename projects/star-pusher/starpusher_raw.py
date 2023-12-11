@@ -134,7 +134,7 @@ def runLevel(levels, levelNum):
     startingTime = pygame.time.get_ticks()
     
     # TASK 4
-    MOVE_STAR_INTERVAL = 5
+    MOVE_STAR_INTERVAL = 5000
     lastStarMoveTime = pygame.time.get_ticks()
 
     levelObj = levels[levelNum]
