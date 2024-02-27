@@ -26,7 +26,11 @@ MOVERATE = 9         # how fast the player moves
 BOUNCERATE = 6       # how fast the player bounces (large is slower)
 BOUNCEHEIGHT = 30    # how high the player bounces
 STARTSIZE = 25       # how big the player starts off
+
 WINSIZE = 300        # how big the player needs to be to win
+#TASK 4
+LOSTSIZE = 15       # how small the player needs to be to lose
+
 INVULNTIME = 2       # how long the player is invulnerable after being hit in seconds
 GAMEOVERTIME = 4     # how long the "game over" text stays on the screen in seconds
 MAXHEALTH = 3        # how much health the player starts with
@@ -87,6 +91,8 @@ def main():
 
 
 def runGame():
+    global FPS
+    
     # set up variables for the start of a new game
     invulnerableMode = False  # if the player is invulnerable
     invulnerableStartTime = 0 # time the player became invulnerable
@@ -293,6 +299,10 @@ def runGame():
 
                     if sqObj['width'] * sqObj['height'] <= playerObj['size']**2:
                         # player is larger and eats the squirrel
+                        
+                        # TASK 5
+                        FPS += 10
+                        
                         playerObj['size'] += int( (sqObj['width'] * sqObj['height'])**0.2 ) + 1
                         del squirrelObjs[i]
 
@@ -308,6 +318,16 @@ def runGame():
                         # player is smaller and takes damage
                         invulnerableMode = True
                         invulnerableStartTime = time.time()
+
+                        # TASK 5
+                        FPS -= 10
+
+                        # TASK 4 - player's size decreases if it collies with a larger enemy
+                        playerObj['size'] -= int( (sqObj['width'] * sqObj['height'])**0.2 ) + 1
+                        if playerObj['size'] <= LOSTSIZE:
+                            gameOverMode = True
+                            gameOverStartTime = time.time()
+
                         playerObj['health'] -= 1
                         if playerObj['health'] == 0:
                             gameOverMode = True # turn on "game over mode"

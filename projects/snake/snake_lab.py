@@ -6,6 +6,7 @@
 import random, pygame, sys
 from pygame.locals import *
 import time
+import threading
 
 FPS = 15
 
@@ -28,6 +29,12 @@ DARKGREEN = (  0, 155,   0)
 BLUE      = (    0,  0, 255)
 PURPLE  = (  160, 32, 240)
 
+# TASK 2 - blinker colors
+BLINKER1_BASE =  (255, 255,   0) # yellow
+BLINKER1_BLINK = (255, 165,   0) # orange
+BLINKER2_BASE =  (160,  32, 240) # purple
+BLINKER2_BLINK = (255,   0, 255) # magenta
+
 DARKGRAY  = ( 40,  40,  40)
 BGCOLOR = BLACK
 
@@ -38,17 +45,8 @@ RIGHT = 'right'
 
 HEAD = 0 # syntactic sugar: index of the worm's head
 
-# TASK 2
-BLINK_ELEMENT_1_DURATION = 5
-BLINK_ELEMENT_1_INTERVAL = 5
-BLINK_ELEMENT_2_DURATION = 7
-
-BLINK_COLOR_1 = (255, 255, 0)
-BLINK_COLOR_2 = (128, 0, 128)
-
 def main():
-    global FPSCLOCK, DISPLAYSURF, BASICFONT
-    second_worm_created = False
+    global FPSCLOCK, DISPLAYSURF, BASICFONT, game_score
 
     pygame.init()
     FPSCLOCK = pygame.time.Clock()
@@ -63,6 +61,8 @@ def main():
 
 
 def runGame():
+    global game_score
+
     # Set a random start point.
     startx = random.randint(5, CELLWIDTH - 6)
     starty = random.randint(5, CELLHEIGHT - 6)
@@ -79,18 +79,33 @@ def runGame():
     second_worm_coords = []
     start_time = time.time()
 
-
     # TASK 2
-    blink_element_1_start_time = time.time()
-    blink_element_1_active = False
-    blink_element_1_position = getRandomLocation()
+    blinker1_created = False
+    blinker1_location = {'x': 0, 'y': 0}
+    blinker1_spawn_time = time.time()
+    blinker1_lifetime = 7
+    blink_interval = 0.3
+    blinker1_active = False
 
-    blink_element_2_active = True
-    blink_element_2_start_time = time.time()
-    blink_element_2_position = getRandomLocation()
-
+    game_score = 0
 
     while True: # main game loop
+        # TASK 2
+        current_time = time.time()
+
+        if current_time - blinker1_spawn_time >= 5 and not blinker1_created:
+            blinker1_location = getRandomLocation()
+            blinker1_created = True
+            blinker1_spawn_time = current_time
+
+        if blinker1_created and not blinker1_active:
+            blinker1_active = True
+            blinker1_thread = threading.Thread(
+                target=drawBlinker,
+                args=(blinker1_location, BLINKER1_BASE, BLINKER1_BLINK, blink_interval, blinker1_lifetime)
+            )
+            blinker1_thread.start()
+
         for event in pygame.event.get(): # event handling loop
             if event.type == QUIT:
                 terminate()
@@ -117,6 +132,9 @@ def runGame():
         if wormCoords[HEAD]['x'] == apple['x'] and wormCoords[HEAD]['y'] == apple['y']:
             # don't remove worm's tail segment
             apple = getRandomLocation() # set a new apple somewhere
+            # TASK 1
+            game_score = game_score + 1
+            
         else:
             # TASK 1 - if first worm's head touches second worm
             if not wormCoords[HEAD] in second_worm_coords:
@@ -170,57 +188,24 @@ def runGame():
             # for secondWormBody in second_worm_coords[1:]:
             #     if secondWormBody['x'] == second_worm_coords[HEAD]['x'] and secondWormBody['y'] == second_worm_coords[HEAD]['y']:
             #         second_worm_created = False
-
-            # TASK 1 - if second worm's head touches first worm
-            if second_worm_coords[HEAD] in wormCoords:
-                second_worm_coords.insert(0, new_head)
-            else:
+            if not second_worm_coords[HEAD] in wormCoords:
                 del second_worm_coords[-1]
-
-
-        # TASK 2
-        # Check if it's time to activate the first blinking element
-        if not blink_element_1_active and time.time() - blink_element_1_start_time >= BLINK_ELEMENT_1_INTERVAL:
-            blink_element_1_active = True
-            blink_element_1_start_time = time.time()
-
-        # Check if it's time to deactivate the first blinking element
-        if blink_element_1_active and time.time() - blink_element_1_start_time >= BLINK_ELEMENT_1_DURATION:
-            blink_element_1_active = False
-
-        # Draw the first blinking element if active
-        if blink_element_1_active:
-            drawBlinkElement(blink_element_1_position, BLINK_COLOR_1)
-
-        # Check if it's time to deactivate the second blinking element
-        if blink_element_2_active and time.time() - blink_element_2_start_time >= BLINK_ELEMENT_2_DURATION:
-            blink_element_2_active = False
-
-        # Draw the second blinking element if active
-        if blink_element_2_active:
-            drawBlinkElement(blink_element_2_position, BLINK_COLOR_2)
 
         
         DISPLAYSURF.fill(BGCOLOR)
         drawGrid()
         drawWorm(wormCoords, DARKGREEN, GREEN)
         drawApple(apple)
-        drawScore(len(wormCoords) - 3)
+        # TASK 1 - fix
+        drawScore(game_score)
 
         # TASK 1
         if second_worm_created:
             drawWorm(second_worm_coords, PURPLE, BLUE)
+            #drawBlinker(blinker1_location, BLINKER1_BASE, BLINKER1_BLINK)
 
         pygame.display.update()
         FPSCLOCK.tick(FPS)
-
-
-# TASK 2
-def drawBlinkElement(coord, color):
-    x = coord['x'] * CELLSIZE
-    y = coord['y'] * CELLSIZE
-    blinkElementRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
-    pygame.draw.rect(DISPLAYSURF, color, blinkElementRect)
 
 
 def drawPressKeyMsg():
@@ -281,6 +266,7 @@ def getRandomLocation():
     return {'x': random.randint(0, CELLWIDTH - 1), 'y': random.randint(0, CELLHEIGHT - 1)}
 
 
+# TASK 3
 def showGameOverScreen():
     gameOverFont = pygame.font.Font('freesansbold.ttf', 150)
     gameSurf = gameOverFont.render('Game', True, WHITE)
@@ -292,33 +278,45 @@ def showGameOverScreen():
 
     DISPLAYSURF.blit(gameSurf, gameRect)
     DISPLAYSURF.blit(overSurf, overRect)
-    drawPressKeyMsg()
+
+    start_button_rect = pygame.Rect(WINDOWWIDTH // 4, WINDOWHEIGHT - 150, WINDOWWIDTH // 2, 50)
+    quit_button_rect = pygame.Rect(WINDOWWIDTH // 4, WINDOWHEIGHT - 80, WINDOWWIDTH // 2, 50)
+
+    pygame.draw.rect(DISPLAYSURF, DARKGRAY, start_button_rect)
+    pygame.draw.rect(DISPLAYSURF, DARKGRAY, quit_button_rect)
+
+    start_button_text = BASICFONT.render('Start from the beginning', True, WHITE)
+    start_button_text_rect = start_button_text.get_rect(center=start_button_rect.center)
+    DISPLAYSURF.blit(start_button_text, start_button_text_rect)
+
+    quit_button_text = BASICFONT.render('Quit', True, WHITE)
+    quit_button_text_rect = quit_button_text.get_rect(center=quit_button_rect.center)
+    DISPLAYSURF.blit(quit_button_text, quit_button_text_rect)
+
     pygame.display.update()
     pygame.time.wait(500)
-    checkForKeyPress() # clear out any key presses in the event queue
-
-    # TASK 2
-    additional_points = 0
-    if blink_element_1_active and wormCoords[HEAD] == blink_element_1_position:
-        additional_points += 3
-
-    if blink_element_2_active and wormCoords[HEAD] == blink_element_2_position:
-        additional_points += 3
-
-    total_score = len(wormCoords) - 3 + additional_points
-
-    # Display the total score on the screen
-    drawScore(total_score)
 
     while True:
-        if checkForKeyPress():
-            pygame.event.get() # clear event queue
-            return
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                terminate()
+            elif event.type == MOUSEBUTTONDOWN:
+                mouse_x, mouse_y = event.pos
+                if start_button_rect.collidepoint(mouse_x, mouse_y):
+                    return  # start over
+                elif quit_button_rect.collidepoint(mouse_x, mouse_y):
+                    terminate()  # quit the game
 
-def drawScore(score):
-    scoreSurf = BASICFONT.render('Score: %s' % (score), True, WHITE)
+        pygame.display.update()
+        FPSCLOCK.tick(FPS)
+
+# TASK 1 - fix for drawScore
+def drawScore(score, bonus_points=0):
+    total_score = score + bonus_points
+    score_text = 'Score: {} (+{})'.format(score, bonus_points)
+    scoreSurf = BASICFONT.render(score_text, True, WHITE)
     scoreRect = scoreSurf.get_rect()
-    scoreRect.topleft = (WINDOWWIDTH - 120, 10)
+    scoreRect.topleft = (WINDOWWIDTH - 180, 10)
     DISPLAYSURF.blit(scoreSurf, scoreRect)
 
 
@@ -338,6 +336,42 @@ def drawApple(coord):
     y = coord['y'] * CELLSIZE
     appleRect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
     pygame.draw.rect(DISPLAYSURF, RED, appleRect)
+
+
+# TASK 2
+def drawBlinker(coord, color1, color2, blink_interval, lifetime):
+    x = coord['x'] * CELLSIZE
+    y = coord['y'] * CELLSIZE
+    blink_timer = pygame.time.get_ticks()
+
+    start_time = pygame.time.get_ticks()
+
+    while pygame.time.get_ticks() - start_time < lifetime * 1000:  # Run the animation for the specified lifetime
+        for event in pygame.event.get():
+            if event.type == QUIT:
+                terminate()
+            elif event.type == KEYDOWN:
+                if event.key == K_ESCAPE:
+                    terminate()
+
+        current_time = pygame.time.get_ticks()
+
+        # Calculate whether to draw the cell or not based on the blink interval
+        should_draw = (current_time - blink_timer) % (blink_interval * 1000 * 2) < blink_interval * 1000
+
+        # Clear only the area around the blinker
+        blinker_rect = pygame.Rect(x, y, CELLSIZE, CELLSIZE)
+        pygame.draw.rect(DISPLAYSURF, BGCOLOR, blinker_rect)
+
+        if should_draw:
+            blinker_inner_rect = pygame.Rect(x + 4, y + 4, CELLSIZE - 8, CELLSIZE - 8)
+            pygame.draw.rect(DISPLAYSURF, color1, blinker_rect)
+            pygame.draw.rect(DISPLAYSURF, color2, blinker_inner_rect)
+
+        pygame.display.update()
+        FPSCLOCK.tick(FPS)
+
+        pygame.time.delay(10)
 
 
 def drawGrid():
